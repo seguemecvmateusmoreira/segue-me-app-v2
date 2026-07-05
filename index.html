@@ -12,7 +12,7 @@
   :root{
     --paper:#FBF8F2;
     --ink:#1C2B2A;
-    --trail:#0F4C4A;      /* teal profundo - marca */
+    --trail:#0F4C4A;      
     --trail-dark:#0B3A38;
     --card:#FFFFFF;
     --line:#E4DFD3;
@@ -130,44 +130,17 @@
   </div>
 
 <script>
-  // =================================================================
-  // FONTE DE DADOS: Google Sheets publicado na web (formato .csv)
-  // -----------------------------------------------------------------
-  // Para manter a ferramenta no futuro, basta editar a planilha e
-  // clicar em "Atualizar dados da planilha" nesta página — não é
-  // preciso mexer no código.
-  //
-  // Colunas esperadas na planilha (o nome exato da coluna pode variar
-  // um pouco, o sistema procura por palavras-chave em cada cabeçalho):
-  //   - Nome           (obrigatório)
-  //   - Círculo        (obrigatório) — ex: Vermelho, Azul, Verde...
-  //   - Ano            (opcional) — ano de nascimento
-  //   - Telefone       (opcional)
-  //   - Link da Foto   (opcional — se vazio, mostra as iniciais)
-  //   - Link do PDF    (opcional — se vazio, o botão mostra um aviso)
-  // =================================================================
+  
   const URL_PLANILHA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1M5XOhGaogJhMKR8cQ-0OWVMSKXDOMiiHctf_ntdd_0IEg0MNxL0h04_RfrXlOzt41_o9at2oIU4F/pub?output=csv";
 
-  // Paleta de cores conhecidas dos Círculos. Se a planilha usar um nome
-  // de cor que não está aqui, cai automaticamente em "Padrão" (cinza-azulado).
   const CORES_CIRCULO = {
     "vermelho": "#B91C1C",
     "azul":     "#1D4ED8",
     "verde":    "#15803D",
-    "amarelo":  "#F4FF00 ",
-    "rosa":     "#BE185D",
+    "amarelo":  "#F4FF00",
+    "rosa":     "#BE185D"
     };
   const COR_PADRAO = "#3F5B5C";
-
-  // Dados de exemplo, usados apenas se a planilha não puder ser carregada.
-  const PARTICIPANTES_EXEMPLO = [
-    { nome: "Maria Aparecida Souza", circulo: "Vermelho", foto: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=300&h=300&fit=crop&crop=faces", ano: "1982", telefone: "(84) 99111-2233", ficha: "" },
-    { nome: "João Batista Ferreira", circulo: "Azul", foto: "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=300&h=300&fit=crop&crop=faces", ano: "1975", telefone: "(84) 99222-3344", ficha: "" },
-    { nome: "Ana Paula Lima", circulo: "Verde", foto: "https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=300&h=300&fit=crop&crop=faces", ano: "1990", telefone: "(84) 99333-4455", ficha: "" },
-    { nome: "Francisco das Chagas Oliveira", circulo: "Amarelo", foto: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=300&h=300&fit=crop&crop=faces", ano: "1968", telefone: "(84) 99444-5566", ficha: "" },
-    { nome: "Rosangela Martins Costa", circulo: "Rosa", foto: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=300&h=300&fit=crop&crop=faces", ano: "1985", telefone: "(84) 99555-6677", ficha: "" },
-    { nome: "Pedro Henrique Almeida", circulo: "Azul", foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop&crop=faces", ano: "1979", telefone: "(84) 99666-7788", ficha: "" }
-  ];
 
   let participantes = [];
 
@@ -205,11 +178,6 @@
             </div>`;
   }
 
-  // -----------------------------------------------------------------
-  // Mapeamento flexível de colunas: procura por palavras-chave no
-  // cabeçalho de cada coluna da planilha, então funciona mesmo que o
-  // nome exato da coluna varie um pouco (maiúsculas, acentos, etc.).
-  // -----------------------------------------------------------------
   function encontrarColuna(cabecalhos, candidatos, excluir){
     return cabecalhos.find(h => {
       const hn = normalizar(h);
@@ -230,11 +198,6 @@
     };
   }
 
-  // O Google não envia o cabeçalho "Access-Control-Allow-Origin" no link
-  // de exportação CSV, então navegadores bloqueiam a busca direta por
-  // política de CORS. Este proxy público apenas repassa o conteúdo,
-  // adicionando o cabeçalho que falta — é a forma padrão de contornar
-  // essa limitação do Google sem precisar de servidor próprio.
   function urlComProxyCors(url){
     return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
   }
