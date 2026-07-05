@@ -189,16 +189,27 @@
 
 function converterLinkDrive(linkOriginal) {
     if (!linkOriginal) return '';
+    
     // Se for o link padrão de compartilhamento do Drive
     if (linkOriginal.includes('drive.google.com')) {
         try {
             // Extrai o ID do arquivo de forma segura
-            const idArquivo = linkOriginal.split('/d/')[1].split('/')[0];
-            return `https://drive.google.com/uc?export=view&id=${idArquivo}`;
+            let idArquivo = '';
+            if (linkOriginal.includes('/d/')) {
+                idArquivo = linkOriginal.split('/d/')[1].split('/')[0];
+            } else if (linkOriginal.includes('id=')) {
+                idArquivo = linkOriginal.split('id=')[1].split('&')[0];
+            }
+            
+            // Nova URL que o Google permite carregar em qualquer site externo/GitHub Pages
+            return `https://lh3.googleusercontent.com/d/${idArquivo}`;
         } catch (e) {
             console.error("Erro ao converter link do Drive:", linkOriginal);
             return linkOriginal;
         }
+    }
+    return linkOriginal;
+}
     }
     return linkOriginal;
 }
