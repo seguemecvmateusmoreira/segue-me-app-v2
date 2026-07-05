@@ -187,16 +187,34 @@
     });
   }
 
-  function mapearLinha(linha, colunas){
+function converterLinkDrive(linkOriginal) {
+    if (!linkOriginal) return '';
+    // Se for o link padrão de compartilhamento do Drive
+    if (linkOriginal.includes('drive.google.com')) {
+        try {
+            // Extrai o ID do arquivo de forma segura
+            const idArquivo = linkOriginal.split('/d/')[1].split('/')[0];
+            return `https://drive.google.com/uc?export=view&id=${idArquivo}`;
+        } catch (e) {
+            console.error("Erro ao converter link do Drive:", linkOriginal);
+            return linkOriginal;
+        }
+    }
+    return linkOriginal;
+}
+
+function mapearLinha(linha, colunas){
+    const linkFotoCru = colunas.foto ? String(linha[colunas.foto] || '').trim() : '';
+    
     return {
-      nome: linha[colunas.nome] || '(sem nome)',
-      circulo: linha[colunas.circulo] || 'Padrão',
-      foto: colunas.foto ? String(linha[colunas.foto] || '').trim() : '',
-      ano: colunas.ano ? (linha[colunas.ano] || '—') : '—',
-      telefone: colunas.telefone ? (linha[colunas.telefone] || '—') : '—',
-      ficha: colunas.ficha ? String(linha[colunas.ficha] || '').trim() : ''
+        nome: linha[colunas.nome] || '(sem nome)',
+        circulo: linha[colunas.circulo] || 'Padrão',
+        foto: converterLinkDrive(linkFotoCru), // Aqui aplicamos a conversão mágica!
+        ano: colunas.ano ? (linha[colunas.ano] || '-') : '-',
+        telefone: colunas.telefone ? (linha[colunas.telefone] || '-') : '-',
+        ficha: colunas.ficha ? String(linha[colunas.ficha] || '').trim() : ''
     };
-  }
+}
 
   function urlComProxyCors(url){
     return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
