@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Identificador de Seguidores · Segue-me</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --paper:#FBF8F2;
+    --ink:#1C2B2A;
+    --trail:#0F4C4A;      /* teal profundo - marca */
+    --trail-dark:#0B3A38;
+    --card:#FFFFFF;
+    --line:#E4DFD3;
+    --focus:#0F4C4A;
+  }
+  body{ font-family:'Inter', sans-serif; background:var(--paper); color:var(--ink); }
+  h1,h2,.font-display{ font-family:'Fraunces', serif; }
+
+  /* Foco visível grande para acessibilidade 40+ */
+  a:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 4px solid var(--focus);
+    outline-offset: 3px;
+    border-radius: 8px;
+  }
+
+  .footsteps {
+    background-image: radial-gradient(var(--line) 1.5px, transparent 1.5px);
+    background-size: 14px 14px;
+  }
+
+  /* Cores das tags e anéis de foto agora são aplicadas via estilo inline
+     (veja o objeto CORES_CIRCULO no JavaScript), para que novas cores de
+     círculo cadastradas na planilha funcionem sem precisar editar este CSS. */
+
+  .card-btn{
+    background: var(--trail);
+    transition: background .15s ease, transform .1s ease;
+  }
+  .card-btn:hover{ background: var(--trail-dark); transform: translateY(-1px); }
+  .card-btn:active{ transform: translateY(0); }
+
+  #modal-backdrop{
+    backdrop-filter: blur(2px);
+    background: rgba(20,30,29,0.55);
+  }
+
+  .fade-in{ animation: fadeIn .18s ease-out; }
+  @keyframes fadeIn{ from{opacity:0; transform: translateY(8px) scale(.98);} to{opacity:1; transform: translateY(0) scale(1);} }
+
+  .no-results{ display:none; }
+</style>
+</head>
+<body class="min-h-screen">
+
+  <!-- CABEÇALHO -->
+  <header class="footsteps border-b-2" style="border-color:var(--line);">
+    <div class="max-w-5xl mx-auto px-6 pt-10 pb-8 text-center">
+      <p class="uppercase tracking-[0.25em] text-sm md:text-base font-bold" style="color:var(--trail);">Equipe Dirigente · Encontro "Segue-me"</p>
+      <h1 class="font-display text-4xl md:text-5xl font-semibold mt-2 mb-6" style="color:var(--ink);">Identificador de Seguidores</h1>
+
+      <!-- BUSCA -->
+      <div class="max-w-2xl mx-auto">
+        <label for="busca" class="sr-only">Buscar por nome ou cor do círculo</label>
+        <div class="relative">
+          <span class="absolute left-5 top-1/2 -translate-y-1/2 text-2xl" aria-hidden="true">🔎</span>
+          <input
+            id="busca"
+            type="text"
+            inputmode="search"
+            placeholder="Buscar por nome ou cor do círculo (ex: Maria, Azul...)"
+            class="w-full text-xl md:text-2xl font-medium rounded-2xl border-4 py-4 pl-14 pr-5 shadow-sm focus:shadow-md outline-none"
+            style="border-color:var(--line); background:var(--card); color:var(--ink);"
+            autocomplete="off"
+          >
+        </div>
+        <div class="flex items-center justify-center gap-3 mt-3 flex-wrap">
+          <p id="contador" class="text-base md:text-lg font-semibold" style="color:var(--trail);">Carregando participantes...</p>
+          <button
+            id="btn-atualizar"
+            onclick="carregarDados()"
+            class="text-sm md:text-base font-bold underline decoration-2 underline-offset-2"
+            style="color:var(--trail);">
+            ↻ Atualizar dados da planilha
+          </button>
+        </div>
+        <p id="fonte-info" class="mt-1 text-xs md:text-sm" style="color:#9A947F;"></p>
+      </div>
+    </div>
+  </header>
+
+  <!-- AVISO DE ERRO -->
+  <div id="erro-banner" class="hidden max-w-2xl mx-auto mt-6 mx-6 px-5 py-4 rounded-2xl border-2 text-left"
+       style="background:#FDECEC; border-color:#B91C1C;">
+    <p class="font-bold text-lg" id="erro-titulo" style="color:#B91C1C;">⚠️ Não foi possível carregar a planilha.</p>
+    <p class="text-base mt-1" id="erro-detalhe" style="color:#7A1E1E;">
+      Verifique se o link do Google Sheets está publicado na web (Arquivo → Compartilhar → Publicar na web) e tente novamente.
+      Enquanto isso, exibimos dados de exemplo.
+    </p>
+  </div>
+
+  <!-- CARREGANDO -->
+  <div id="carregando-banner" class="max-w-5xl mx-auto px-6 pt-10 text-center">
+    <p class="text-xl font-semibold animate-pulse" style="color:var(--trail);">Carregando dados da planilha...</p>
+  </div>
+
+  <!-- GRID DE CARDS -->
+  <main class="max-w-5xl mx-auto px-6 py-10">
+    <div id="grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    <p id="sem-resultados" class="no-results text-center text-xl font-semibold py-16" style="color:#8A8378;">
+      Nenhum participante encontrado. Tente outro nome ou cor de círculo.
+    </p>
+  </main>
+
+  <footer class="text-center text-sm md:text-base py-8" style="color:#8A8378;">
+    Ferramenta de uso interno da Equipe Dirigente — Encontro "Segue-me"
+  </footer>
+
+  <!-- MODAL -->
+  <div id="modal-backdrop" class="fixed inset-0 z-40 hidden items-center justify-center p-4">
+    <div id="modal-box" class="fade-in bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden" style="background:var(--card);">
+      <div class="p-6 md:p-8" id="modal-content">
+        <!-- preenchido via JS -->
+      </div>
+    </div>
+  </div>
+
+<script>
+  // =================================================================
+  // FONTE DE DADOS: Google Sheets publicado na web (formato .csv)
+  // -----------------------------------------------------------------
+  // Para manter a ferramenta no futuro, basta editar a planilha e
+  // clicar em "Atualizar dados da planilha" nesta página — não é
+  // preciso mexer no código.
+  //
+  // Colunas esperadas na planilha (o nome exato da coluna pode variar
+  // um pouco, o sistema procura por palavras-chave em cada cabeçalho):
+  //   - Nome           (obrigatório)
+  //   - Círculo        (obrigatório) — ex: Vermelho, Azul, Verde...
+  //   - Ano            (opcional) — ano de nascimento
+  //   - Telefone       (opcional)
+  //   - Link da Foto   (opcional — se vazio, mostra as iniciais)
+  //   - Link do PDF    (opcional — se vazio, o botão mostra um aviso)
+  // =================================================================
+  const URL_PLANILHA = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1M5XOhGaogJhMKR8cQ-0OWVMSKXDOMiiHctf_ntdd_0IEg0MNxL0h04_RfrXlOzt41_o9at2oIU4F/pub?output=csv";
+
+  // Paleta de cores conhecidas dos Círculos. Se a planilha usar um nome
+  // de cor que não está aqui, cai automaticamente em "Padrão" (cinza-azulado).
+  const CORES_CIRCULO = {
+    "vermelho": "#B91C1C",
+    "azul":     "#1D4ED8",
+    "verde":    "#15803D",
+    "amarelo":  "#B45309",
+    "rosa":     "#BE185D",
+    "roxo":     "#7E22CE",
+    "laranja":  "#C2410C",
+    "branco":   "#57534E",
+    "preto":    "#1C1917"
+  };
+  const COR_PADRAO = "#3F5B5C";
+
+  // Dados de exemplo, usados apenas se a planilha não puder ser carregada.
+  const PARTICIPANTES_EXEMPLO = [
+    { nome: "Maria Aparecida Souza", circulo: "Vermelho", foto: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=300&h=300&fit=crop&crop=faces", ano: "1982", telefone: "(84) 99111-2233", ficha: "" },
+    { nome: "João Batista Ferreira", circulo: "Azul", foto: "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=300&h=300&fit=crop&crop=faces", ano: "1975", telefone: "(84) 99222-3344", ficha: "" },
+    { nome: "Ana Paula Lima", circulo: "Verde", foto: "https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=300&h=300&fit=crop&crop=faces", ano: "1990", telefone: "(84) 99333-4455", ficha: "" },
+    { nome: "Francisco das Chagas Oliveira", circulo: "Amarelo", foto: "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=300&h=300&fit=crop&crop=faces", ano: "1968", telefone: "(84) 99444-5566", ficha: "" },
+    { nome: "Rosangela Martins Costa", circulo: "Rosa", foto: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=300&h=300&fit=crop&crop=faces", ano: "1985", telefone: "(84) 99555-6677", ficha: "" },
+    { nome: "Pedro Henrique Almeida", circulo: "Azul", foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop&crop=faces", ano: "1979", telefone: "(84) 99666-7788", ficha: "" }
+  ];
+
+  let participantes = [];
+
+  const grid = document.getElementById('grid');
+  const inputBusca = document.getElementById('busca');
+  const contador = document.getElementById('contador');
+  const semResultados = document.getElementById('sem-resultados');
+  const erroBanner = document.getElementById('erro-banner');
+  const erroTitulo = document.getElementById('erro-titulo');
+  const erroDetalhe = document.getElementById('erro-detalhe');
+  const carregandoBanner = document.getElementById('carregando-banner');
+  const fonteInfo = document.getElementById('fonte-info');
+  const btnAtualizar = document.getElementById('btn-atualizar');
+
+  function normalizar(texto){
+    return String(texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  }
+
+  function corDoCirculo(nomeCirculo){
+    return CORES_CIRCULO[normalizar(nomeCirculo)] || COR_PADRAO;
+  }
+
+  function iniciais(nome){
+    const partes = String(nome || '?').trim().split(/\s+/);
+    const primeira = partes[0]?.[0] || '?';
+    const ultima = partes.length > 1 ? partes[partes.length - 1][0] : '';
+    return (primeira + ultima).toUpperCase();
+  }
+
+  // Cria um avatar circular com as iniciais, usado quando não há foto.
+  function avatarIniciais(nome, cor, tamanhoClasses){
+    return `<div class="${tamanhoClasses} rounded-full flex items-center justify-center text-white font-bold mb-4"
+                 style="background:${cor}; box-shadow: 0 0 0 5px ${cor}33, 0 0 0 3px ${cor}; font-size: 1.6rem;">
+              ${iniciais(nome)}
+            </div>`;
+  }
+
+  // -----------------------------------------------------------------
+  // Mapeamento flexível de colunas: procura por palavras-chave no
+  // cabeçalho de cada coluna da planilha, então funciona mesmo que o
+  // nome exato da coluna varie um pouco (maiúsculas, acentos, etc.).
+  // -----------------------------------------------------------------
+  function encontrarColuna(cabecalhos, candidatos, excluir){
+    return cabecalhos.find(h => {
+      const hn = normalizar(h);
+      const bate = candidatos.some(c => hn.includes(c));
+      const excluido = excluir ? excluir.some(e => hn.includes(e)) : false;
+      return bate && !excluido;
+    });
+  }
+
+  function mapearLinha(linha, colunas){
+    return {
+      nome: linha[colunas.nome] || '(sem nome)',
+      circulo: linha[colunas.circulo] || 'Padrão',
+      foto: colunas.foto ? String(linha[colunas.foto] || '').trim() : '',
+      ano: colunas.ano ? (linha[colunas.ano] || '—') : '—',
+      telefone: colunas.telefone ? (linha[colunas.telefone] || '—') : '—',
+      ficha: colunas.ficha ? String(linha[colunas.ficha] || '').trim() : ''
+    };
+  }
+
+  // O Google não envia o cabeçalho "Access-Control-Allow-Origin" no link
+  // de exportação CSV, então navegadores bloqueiam a busca direta por
+  // política de CORS. Este proxy público apenas repassa o conteúdo,
+  // adicionando o cabeçalho que falta — é a forma padrão de contornar
+  // essa limitação do Google sem precisar de servidor próprio.
+  function urlComProxyCors(url){
+    return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+  }
+
+  async function buscarCsv(url){
+    const resposta = await fetch(url, { cache: 'no-store' });
+    if(!resposta.ok) throw new Error('Falha ao baixar a planilha (' + resposta.status + ')');
+    return resposta.text();
+  }
+
+  async function carregarDados(){
+    carregandoBanner.classList.remove('hidden');
+    erroBanner.classList.add('hidden');
+    contador.textContent = 'Carregando participantes...';
+    btnAtualizar.disabled = true;
+
+    try{
+      let textoCsv;
+      try{
+        // 1ª tentativa: busca direta (funciona se o Google mudar a política um dia)
+        textoCsv = await buscarCsv(URL_PLANILHA);
+      } catch(erroDireto){
+        // 2ª tentativa: via proxy CORS, contornando a limitação do Google
+        textoCsv = await buscarCsv(urlComProxyCors(URL_PLANILHA));
+      }
+      const resultado = Papa.parse(textoCsv, { header: true, skipEmptyLines: true });
+      const linhas = resultado.data;
+
+      if(!linhas.length) throw new Error('A planilha está vazia. Adicione ao menos um participante nela.');
+
+      const cabecalhos = Object.keys(linhas[0]);
+      const colunas = {
+        nome: encontrarColuna(cabecalhos, ['nome']),
+        circulo: encontrarColuna(cabecalhos, ['circulo', 'cor']),
+        foto: encontrarColuna(cabecalhos, ['foto', 'imagem']),
+        ano: encontrarColuna(cabecalhos, ['ano']),
+        telefone: encontrarColuna(cabecalhos, ['telefone', 'fone', 'celular']),
+        ficha: encontrarColuna(cabecalhos, ['pdf', 'ficha'])
+      };
+
+      if(!colunas.nome || !colunas.circulo){
+        throw new Error('Não encontrei as colunas de Nome e Círculo na planilha.');
+      }
+
+      participantes = linhas
+        .filter(l => String(l[colunas.nome] || '').trim() !== '')
+        .map(l => mapearLinha(l, colunas));
+
+      fonteInfo.textContent = `Dados carregados da planilha (${participantes.length} participantes) — atualizado agora.`;
+    } catch(erro){
+      console.error(erro);
+      participantes = PARTICIPANTES_EXEMPLO;
+      erroBanner.classList.remove('hidden');
+
+      if(String(erro.message || '').includes('vazia')){
+        erroTitulo.textContent = '📋 A planilha ainda não tem participantes.';
+        erroDetalhe.textContent = 'Ela está publicada e conectada corretamente — basta preencher as linhas com Nome, Círculo, Ano, Telefone, Link da Foto e Link do PDF. Enquanto isso, exibimos dados de exemplo.';
+      } else {
+        erroTitulo.textContent = '⚠️ Não foi possível carregar a planilha.';
+        erroDetalhe.textContent = 'Tentamos a busca direta e também pelo serviço alternativo, mas ambas falharam. Verifique sua conexão com a internet e se o link ainda está publicado (Arquivo → Compartilhar → Publicar na web) e tente novamente. Enquanto isso, exibimos dados de exemplo.';
+      }
+      fonteInfo.textContent = 'Exibindo dados de exemplo (a planilha não pôde ser carregada).';
+    } finally {
+      carregandoBanner.classList.add('hidden');
+      btnAtualizar.disabled = false;
+      inputBusca.value = '';
+      renderizarGrid(participantes.map((p, indice) => ({ p, indice })));
+      atualizarContador(participantes.length, participantes.length);
+    }
+  }
+
+  function criarCard(p, indice){
+    const cor = corDoCirculo(p.circulo);
+    const temFoto = p.foto && /^https?:\/\//i.test(p.foto);
+    const imagemHtml = temFoto
+      ? `<img src="${p.foto}" alt="Foto de ${p.nome}"
+              class="w-28 h-28 md:w-32 md:h-32 rounded-full object-cover mb-4"
+              style="box-shadow: 0 0 0 5px ${cor}33, 0 0 0 3px ${cor};"
+              onerror="this.outerHTML = window.__avatarFallback('${encodeURIComponent(p.nome)}', '${cor}');">`
+      : avatarIniciais(p.nome, cor, 'w-28 h-28 md:w-32 md:h-32');
+
+    return `
+      <div class="participante-card bg-white rounded-3xl shadow-md border-2 p-6 flex flex-col items-center text-center"
+           style="border-color:var(--line); background:var(--card);"
+           data-nome="${normalizar(p.nome)}" data-circulo="${normalizar(p.circulo)}">
+        ${imagemHtml}
+        <h2 class="font-display text-xl md:text-2xl font-semibold leading-snug mb-3" style="color:var(--ink);">${p.nome}</h2>
+        <span class="text-white font-bold text-base md:text-lg px-4 py-1.5 rounded-full mb-5" style="background:${cor};">
+          Círculo ${p.circulo}
+        </span>
+        <button
+          class="card-btn text-white font-bold text-lg md:text-xl w-full py-3.5 rounded-2xl shadow-sm"
+          onclick="abrirModal(${indice})">
+          Ver Detalhes e Ficha
+        </button>
+      </div>
+    `;
+  }
+
+  // Usado pelo onerror da <img> acima, caso a URL da foto esteja quebrada.
+  window.__avatarFallback = function(nomeCodificado, cor){
+    const nome = decodeURIComponent(nomeCodificado);
+    return avatarIniciais(nome, cor, 'w-28 h-28 md:w-32 md:h-32');
+  };
+
+  function renderizarGrid(lista){
+    grid.innerHTML = lista.map(item => criarCard(item.p, item.indice)).join('');
+  }
+
+  function atualizarContador(mostrando, total){
+    contador.textContent = `Mostrando ${mostrando} de ${total} participantes`;
+  }
+
+  function filtrar(){
+    const termo = normalizar(inputBusca.value.trim());
+    const listaCompleta = participantes.map((p, indice) => ({ p, indice }));
+
+    if(!termo){
+      renderizarGrid(listaCompleta);
+      atualizarContador(participantes.length, participantes.length);
+      semResultados.classList.add('no-results');
+      grid.classList.remove('hidden');
+      return;
+    }
+
+    const filtrada = listaCompleta.filter(({p}) =>
+      normalizar(p.nome).includes(termo) || normalizar(p.circulo).includes(termo)
+    );
+
+    renderizarGrid(filtrada);
+    atualizarContador(filtrada.length, participantes.length);
+
+    if(filtrada.length === 0){
+      semResultados.classList.remove('no-results');
+      grid.classList.add('hidden');
+    } else {
+      semResultados.classList.add('no-results');
+      grid.classList.remove('hidden');
+    }
+  }
+
+  inputBusca.addEventListener('input', filtrar);
+
+  // ---------- MODAL ----------
+  const backdrop = document.getElementById('modal-backdrop');
+  const modalContent = document.getElementById('modal-content');
+
+  function abrirModal(indice){
+    const p = participantes[indice];
+    const cor = corDoCirculo(p.circulo);
+    const temFoto = p.foto && /^https?:\/\//i.test(p.foto);
+    const imagemHtml = temFoto
+      ? `<img src="${p.foto}" alt="Foto de ${p.nome}" class="w-16 h-16 rounded-full object-cover"
+              style="box-shadow: 0 0 0 4px ${cor}33, 0 0 0 2px ${cor};"
+              onerror="this.outerHTML = window.__avatarFallback('${encodeURIComponent(p.nome)}', '${cor}').replace('w-28 h-28 md:w-32 md:h-32', 'w-16 h-16').replace('mb-4','');">`
+      : avatarIniciais(p.nome, cor, 'w-16 h-16');
+
+    const acaoFicha = p.ficha
+      ? `onclick="window.open('${p.ficha}', '_blank')"`
+      : `onclick="alert('Ainda não há um link de ficha (PDF) cadastrado para ${p.nome} na planilha.')"`;
+
+    modalContent.innerHTML = `
+      <div class="flex items-start justify-between mb-6">
+        <div class="flex items-center gap-4">
+          ${imagemHtml}
+          <div>
+            <h2 class="font-display text-2xl font-semibold" style="color:var(--ink);">${p.nome}</h2>
+            <span class="inline-block text-white font-bold text-sm px-3 py-1 rounded-full mt-1" style="background:${cor};">Círculo ${p.circulo}</span>
+          </div>
+        </div>
+        <button aria-label="Fechar" onclick="fecharModal()"
+          class="text-3xl leading-none font-bold px-3 py-1 rounded-xl hover:bg-gray-100"
+          style="color:var(--ink);">&times;</button>
+      </div>
+
+      <dl class="space-y-4 text-lg md:text-xl mb-8">
+        <div class="flex justify-between border-b pb-3" style="border-color:var(--line);">
+          <dt class="font-semibold" style="color:#6B655A;">Ano de Nascimento</dt>
+          <dd class="font-bold text-right" style="color:var(--ink);">${p.ano}</dd>
+        </div>
+        <div class="flex justify-between pb-1">
+          <dt class="font-semibold" style="color:#6B655A;">Telefone</dt>
+          <dd class="font-bold text-right" style="color:var(--ink);">${p.telefone}</dd>
+        </div>
+      </dl>
+
+      <button
+        class="card-btn w-full text-white font-bold text-lg md:text-xl py-4 rounded-2xl shadow-sm flex items-center justify-center gap-3"
+        ${acaoFicha}>
+        📄 Visualizar Ficha Original (PDF)
+      </button>
+    `;
+    backdrop.classList.remove('hidden');
+    backdrop.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function fecharModal(){
+    backdrop.classList.add('hidden');
+    backdrop.classList.remove('flex');
+    document.body.style.overflow = '';
+  }
+
+  backdrop.addEventListener('click', (e) => {
+    if(e.target === backdrop) fecharModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape') fecharModal();
+  });
+
+  carregarDados();
+</script>
+</body>
+</html>
